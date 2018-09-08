@@ -8,7 +8,10 @@ inThisBuild(List(
 
 lazy val `citi1-api` = project
   .settings(
-    libraryDependencies += Libs.`play-json`,
+    libraryDependencies ++= Seq(
+      Libs.`play-json`,
+      Akka.`akka-stream`
+    ),
   )
 
 lazy val `citi1-client` = project

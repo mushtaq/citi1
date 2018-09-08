@@ -1,4 +1,5 @@
-package citi1
+package citi1.api
+
 import play.api.libs.json.{Format, Json}
 
 case class Payload[K, V](key: K, value: V)

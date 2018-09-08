@@ -3,6 +3,7 @@ package citi1.client
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, RequestEntity, StatusCodes}
@@ -15,11 +16,11 @@ import play.api.libs.json.{Format, Json}
 
 import scala.async.Async._
 import scala.concurrent.Future
-import akka.http.scaladsl.unmarshalling.sse.EventStreamUnmarshalling._
 
 class KVClient[K: Format, V: Format](baseUri: String)(implicit actorSystem: ActorSystem)
     extends KVStore[K, V]
     with PlayJsonSupport {
+
   import actorSystem.dispatcher
   implicit val mat: ActorMaterializer = ActorMaterializer()
 
@@ -52,6 +53,8 @@ class KVClient[K: Format, V: Format](baseUri: String)(implicit actorSystem: Acto
   }
 
   override def watch(key: K): Source[KeyUpdate[K, V], KillSwitch] = {
+    import akka.http.scaladsl.unmarshalling.sse.EventStreamUnmarshalling._
+
     val futureSource = async {
       val request = HttpRequest()
         .withMethod(HttpMethods.POST)
@@ -67,5 +70,24 @@ class KVClient[K: Format, V: Format](baseUri: String)(implicit actorSystem: Acto
 
     Source.fromFutureSource(futureSource).viaMat(KillSwitches.single)(Keep.right)
   }
+
+//  override def watchJson(key: K): Source[KeyUpdate[K, V], KillSwitch] = {
+//    implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
+//
+//    val futureSource = async {
+//      val request = HttpRequest()
+//        .withMethod(HttpMethods.POST)
+//        .withUri(s"$baseUri/kvstore/watch-json")
+//        .withEntity(await(Marshal(key).to[RequestEntity]))
+//
+//      val response = await(Http().singleRequest(request))
+//
+//      await(
+//        Unmarshal(response.entity).to[Source[KeyUpdate[K, V], NotUsed]]
+//      )
+//    }
+//
+//    Source.fromFutureSource(futureSource).viaMat(KillSwitches.single)(Keep.right)
+//  }
 
 }

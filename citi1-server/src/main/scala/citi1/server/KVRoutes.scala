@@ -1,6 +1,6 @@
 package citi1.server
 
-import akka.NotUsed
+import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.server.{Directives, Route}
 import citi1.api.{KVStore, Payload}
@@ -9,6 +9,7 @@ import play.api.libs.json.{JsValue, Json}
 import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling._
 
 class KVRoutes(kvStore: KVStore[JsValue, JsValue]) extends Directives with PlayJsonSupport {
+  implicit val jsonStreamingSupport: JsonEntityStreamingSupport = EntityStreamingSupport.json()
 
   val routes: Route = pathPrefix("kvstore") {
     post {
@@ -27,8 +28,16 @@ class KVRoutes(kvStore: KVStore[JsValue, JsValue]) extends Directives with PlayJ
       path("watch") {
         entity(as[JsValue]) { key =>
           rejectEmptyResponse {
-            val value = kvStore.watch(key).map(x => ServerSentEvent(Json.toJson(x).toString()))
-            complete(value)
+            val stream    = kvStore.watch(key)
+            val sseStream = stream.map(x => ServerSentEvent(Json.toJson(x).toString()))
+            complete(sseStream)
+          }
+        }
+      } ~
+      path("watch-json") {
+        entity(as[JsValue]) { key =>
+          rejectEmptyResponse {
+            complete(kvStore.watch(key))
           }
         }
       }
